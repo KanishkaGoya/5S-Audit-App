@@ -102,7 +102,7 @@ if uploaded_files:
 # Add camera file
 if camera_file:
     files.append(camera_file)
-    )
+    
 
     # Preview images
     if files:
