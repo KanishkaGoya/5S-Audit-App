@@ -138,3 +138,11 @@ if st.button("Save Audit"):
     final_df.to_excel(EXCEL_FILE, index=False)
 
     st.success(f"Audit Saved! Audit ID: {audit_id}")
+    if os.path.exists(EXCEL_FILE):
+    with open(EXCEL_FILE, "rb") as file:
+        st.download_button(
+            label="Download Audit Records Excel",
+            data=file,
+            file_name="audit_records.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
