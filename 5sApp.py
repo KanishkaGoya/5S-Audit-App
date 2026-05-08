@@ -46,7 +46,7 @@ plant = st.selectbox(
 
 division = st.selectbox(
     "Division",
-    ["BB", "TRB", "RB", "LDB", "Quality", "Maintainance"]
+    ["BB", "TRB", "RB", "LDB", "NRB", "Quality", "Maintainance"]
 )
 
 divisional_head = st.text_input("Divisional Head")
