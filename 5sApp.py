@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 import os
+import zipfile
 from datetime import datetime
 
-# ---------------- CHANGE THESE 2 PATHS ----------------
+# ---------------- CONFIG ----------------
 UPLOAD_FOLDER = "Uploads"
 EXCEL_FILE = "audit_records.xlsx"
-# ------------------------------------------------------
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 st.set_page_config(page_title="5S Audit App", layout="wide")
 st.title("5S Audit Management App")
 
-# Create Excel if missing
+# ---------------- CREATE EXCEL ----------------
 if not os.path.exists(EXCEL_FILE):
     df = pd.DataFrame(columns=[
         "Audit ID",
@@ -29,7 +29,7 @@ if not os.path.exists(EXCEL_FILE):
         "JH Leader",
         "S Type",
         "Observation",
-        "Image Paths",
+        "Image Names",
         "Timestamp"
     ])
     df.to_excel(EXCEL_FILE, index=False)
@@ -62,7 +62,7 @@ s_type = st.selectbox(
     ["1S", "2S", "3S", "4S", "5S"]
 )
 
-# ---------------- MULTIPLE OBSERVATIONS ----------------
+# ---------------- OBSERVATIONS ----------------
 st.header("Observations")
 
 if "obs_count" not in st.session_state:
@@ -88,12 +88,17 @@ for i in range(st.session_state.obs_count):
         key=f"img_{i}"
     )
 
+    # Preview uploaded images
+    if files:
+        for file in files:
+            st.image(file, caption=file.name, width=250)
+
     observation_data.append({
         "text": obs_text,
         "files": files
     })
 
-# ---------------- SAVE ----------------
+# ---------------- SAVE AUDIT ----------------
 if st.button("Save Audit"):
     audit_id = "AUD-" + datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -101,7 +106,7 @@ if st.button("Save Audit"):
     rows = []
 
     for obs in observation_data:
-        saved_paths = []
+        saved_files = []
 
         if obs["files"]:
             for file in obs["files"]:
@@ -111,7 +116,7 @@ if st.button("Save Audit"):
                 with open(filepath, "wb") as f:
                     f.write(file.getbuffer())
 
-                saved_paths.append(filepath)
+                saved_files.append(filename)
 
         row = {
             "Audit ID": audit_id,
@@ -127,7 +132,7 @@ if st.button("Save Audit"):
             "JH Leader": jh_leader,
             "S Type": s_type,
             "Observation": obs["text"],
-            "Image Paths": ",".join(saved_paths),
+            "Image Names": ",".join(saved_files),
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -137,8 +142,9 @@ if st.button("Save Audit"):
     final_df = pd.concat([existing_df, new_df], ignore_index=True)
     final_df.to_excel(EXCEL_FILE, index=False)
 
-    st.success(f"Audit Saved! Audit ID: {audit_id}")
+    st.success(f"Audit Saved Successfully! Audit ID: {audit_id}")
 
+# ---------------- DOWNLOAD EXCEL ----------------
 if os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as file:
         st.download_button(
@@ -147,3 +153,33 @@ if os.path.exists(EXCEL_FILE):
             file_name="audit_records.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
+# ---------------- ZIP IMAGES ----------------
+zip_filename = "audit_images.zip"
+
+with zipfile.ZipFile(zip_filename, "w") as zipf:
+    for root, dirs, files in os.walk(UPLOAD_FOLDER):
+        for file in files:
+            file_path = os.path.join(root, file)
+            zipf.write(file_path, arcname=file)
+
+if os.path.exists(zip_filename):
+    with open(zip_filename, "rb") as f:
+        st.download_button(
+            label="Download All Audit Images",
+            data=f,
+            file_name="audit_images.zip",
+            mime="application/zip"
+        )
+
+# ---------------- IMAGE GALLERY ----------------
+st.header("Uploaded Images Gallery")
+
+image_files = os.listdir(UPLOAD_FOLDER)
+
+if image_files:
+    for img in image_files:
+        img_path = os.path.join(UPLOAD_FOLDER, img)
+        st.image(img_path, caption=img, width=250)
+else:
+    st.info("No uploaded images yet.")
