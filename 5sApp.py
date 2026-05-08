@@ -3,16 +3,17 @@ import pandas as pd
 import os
 from datetime import datetime
 
-# ---------------- CONFIG ----------------
-UPLOAD_FOLDER = "uploads"
-EXCEL_FILE = "audit_records.xlsx"
+# ---------------- CHANGE THESE 2 PATHS ----------------
+UPLOAD_FOLDER = r"https://nbcbearingsrj-my.sharepoint.com/:f:/g/personal/kanishka_goyal_nbcbearings_in/IgB5WG4no0BpQKzKoGbgFG8RASaL5rPQg3QdsDQn8Rc08Wo?e=d6qDSI"
+EXCEL_FILE = r"https://nbcbearingsrj-my.sharepoint.com/:x:/g/personal/kanishka_goyal_nbcbearings_in/IQAEEHlx4icdQoFbHvjOJ1p-AXCP8TorkhN2obC48mSxUjo?e=N8fD3y"
+# ------------------------------------------------------
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 st.set_page_config(page_title="5S Audit App", layout="wide")
 st.title("5S Audit Management App")
 
-# ---------------- CREATE EXCEL IF NOT EXISTS ----------------
+# Create Excel if missing
 if not os.path.exists(EXCEL_FILE):
     df = pd.DataFrame(columns=[
         "Audit ID",
@@ -33,7 +34,7 @@ if not os.path.exists(EXCEL_FILE):
     ])
     df.to_excel(EXCEL_FILE, index=False)
 
-# ---------------- AUDIT HEADER ----------------
+# ---------------- AUDIT DETAILS ----------------
 st.header("Audit Details")
 
 audit_date = st.date_input("Audit Date")
@@ -56,32 +57,31 @@ auditee = st.text_input("Auditee")
 auditor = st.text_input("Auditor")
 jh_leader = st.text_input("JH Leader")
 
-# ---------------- S TYPE ----------------
 s_type = st.selectbox(
     "Select S",
     ["1S", "2S", "3S", "4S", "5S"]
 )
 
-# ---------------- OBSERVATIONS ----------------
+# ---------------- MULTIPLE OBSERVATIONS ----------------
 st.header("Observations")
 
-if "observations_count" not in st.session_state:
-    st.session_state.observations_count = 1
+if "obs_count" not in st.session_state:
+    st.session_state.obs_count = 1
 
 if st.button("➕ Add Observation"):
-    st.session_state.observations_count += 1
+    st.session_state.obs_count += 1
 
 observation_data = []
 
-for i in range(st.session_state.observations_count):
+for i in range(st.session_state.obs_count):
     st.subheader(f"Observation {i+1}")
 
     obs_text = st.text_area(
         f"Observation Text {i+1}",
-        key=f"obs_text_{i}"
+        key=f"text_{i}"
     )
 
-    uploaded_files = st.file_uploader(
+    files = st.file_uploader(
         f"Upload/Capture Images {i+1}",
         type=["jpg", "jpeg", "png"],
         accept_multiple_files=True,
@@ -90,15 +90,15 @@ for i in range(st.session_state.observations_count):
 
     observation_data.append({
         "text": obs_text,
-        "files": uploaded_files
+        "files": files
     })
 
-# ---------------- SAVE BUTTON ----------------
+# ---------------- SAVE ----------------
 if st.button("Save Audit"):
     audit_id = "AUD-" + datetime.now().strftime("%Y%m%d%H%M%S")
 
     existing_df = pd.read_excel(EXCEL_FILE)
-    new_rows = []
+    rows = []
 
     for obs in observation_data:
         saved_paths = []
@@ -112,8 +112,6 @@ if st.button("Save Audit"):
                     f.write(file.getbuffer())
 
                 saved_paths.append(filepath)
-
-        image_paths = ",".join(saved_paths)
 
         row = {
             "Audit ID": audit_id,
@@ -129,14 +127,14 @@ if st.button("Save Audit"):
             "JH Leader": jh_leader,
             "S Type": s_type,
             "Observation": obs["text"],
-            "Image Paths": image_paths,
+            "Image Paths": ",".join(saved_paths),
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
 
-        new_rows.append(row)
+        rows.append(row)
 
-    new_df = pd.DataFrame(new_rows)
+    new_df = pd.DataFrame(rows)
     final_df = pd.concat([existing_df, new_df], ignore_index=True)
     final_df.to_excel(EXCEL_FILE, index=False)
 
-    st.success(f"Audit Saved Successfully! Audit ID: {audit_id}")
+    st.success(f"Audit Saved! Audit ID: {audit_id}")
