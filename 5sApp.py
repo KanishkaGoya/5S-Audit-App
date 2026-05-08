@@ -13,7 +13,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 st.set_page_config(page_title="5S Audit App", layout="wide")
 st.title("5S Audit Management App")
 
-# ---------------- CREATE EXCEL ----------------
+# ---------------- CREATE EXCEL IF NOT EXISTS ----------------
 if not os.path.exists(EXCEL_FILE):
     df = pd.DataFrame(columns=[
         "Audit ID",
@@ -88,7 +88,7 @@ for i in range(st.session_state.obs_count):
         key=f"img_{i}"
     )
 
-    # Preview uploaded images
+    # Preview images
     if files:
         for file in files:
             st.image(file, caption=file.name, width=250)
@@ -104,19 +104,32 @@ if st.button("Save Audit"):
 
     existing_df = pd.read_excel(EXCEL_FILE)
     rows = []
+    saved_files_all = []
 
     for obs in observation_data:
         saved_files = []
 
         if obs["files"]:
             for file in obs["files"]:
-                filename = f"{audit_id}_{file.name}"
+                safe_division = division.replace(" ", "_")
+                safe_area = audit_area.replace(" ", "_")
+                safe_line = audit_line.replace(" ", "_")
+
+                filename = (
+                    f"{safe_division}_"
+                    f"{safe_area}_"
+                    f"{safe_line}_"
+                    f"{audit_id}_"
+                    f"{file.name}"
+                )
+
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
 
                 with open(filepath, "wb") as f:
                     f.write(file.getbuffer())
 
                 saved_files.append(filename)
+                saved_files_all.append(filename)
 
         row = {
             "Audit ID": audit_id,
@@ -154,8 +167,8 @@ if os.path.exists(EXCEL_FILE):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# ---------------- ZIP IMAGES ----------------
-zip_filename = "audit_images.zip"
+# ---------------- DOWNLOAD ALL IMAGES ZIP ----------------
+zip_filename = "all_audit_images.zip"
 
 with zipfile.ZipFile(zip_filename, "w") as zipf:
     for root, dirs, files in os.walk(UPLOAD_FOLDER):
@@ -166,9 +179,9 @@ with zipfile.ZipFile(zip_filename, "w") as zipf:
 if os.path.exists(zip_filename):
     with open(zip_filename, "rb") as f:
         st.download_button(
-            label="Download All Audit Images",
+            label="Download All Audit Images ZIP",
             data=f,
-            file_name="audit_images.zip",
+            file_name=zip_filename,
             mime="application/zip"
         )
 
