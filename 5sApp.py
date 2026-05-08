@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 
 # ---------------- CHANGE THESE 2 PATHS ----------------
-UPLOAD_FOLDER = r"https://nbcbearingsrj-my.sharepoint.com/:f:/g/personal/kanishka_goyal_nbcbearings_in/IgB5WG4no0BpQKzKoGbgFG8RASaL5rPQg3QdsDQn8Rc08Wo?e=d6qDSI"
-EXCEL_FILE = r"https://nbcbearingsrj-my.sharepoint.com/:x:/g/personal/kanishka_goyal_nbcbearings_in/IQAEEHlx4icdQoFbHvjOJ1p-AXCP8TorkhN2obC48mSxUjo?e=N8fD3y"
+UPLOAD_FOLDER = "Uploads"
+EXCEL_FILE = "audit_records.xlsx"
 # ------------------------------------------------------
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
