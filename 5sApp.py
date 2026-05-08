@@ -81,11 +81,27 @@ for i in range(st.session_state.obs_count):
         key=f"text_{i}"
     )
 
-    files = st.file_uploader(
-        f"Upload/Capture Images {i+1}",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=True,
-        key=f"img_{i}"
+    uploaded_files = st.file_uploader(
+    f"Upload Images {i+1}",
+    type=["jpg", "jpeg", "png"],
+    accept_multiple_files=True,
+    key=f"upload_{i}"
+)
+
+camera_file = st.camera_input(
+    f"Capture Image {i+1}",
+    key=f"camera_{i}"
+)
+
+files = []
+
+# Add uploaded files
+if uploaded_files:
+    files.extend(uploaded_files)
+
+# Add camera file
+if camera_file:
+    files.append(camera_file)
     )
 
     # Preview images
