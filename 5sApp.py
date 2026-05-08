@@ -1,37 +1,40 @@
 import streamlit as st
-import sqlite3
+import pandas as pd
 import os
 from datetime import datetime
 
+# ---------------- CONFIG ----------------
 UPLOAD_FOLDER = "uploads"
+EXCEL_FILE = "audit_records.xlsx"
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-conn = sqlite3.connect("audit.db", check_same_thread=False)
-cursor = conn.cursor()
+st.set_page_config(page_title="5S Audit App", layout="wide")
+st.title("5S Audit Management App")
 
-# Create tables
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS audits (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    audit_date TEXT,
-    plant TEXT,
-    division TEXT,
-    divisional_head TEXT,
-    department_head TEXT,
-    audit_area TEXT,
-    audit_line TEXT,
-    auditee TEXT,
-    auditor TEXT,
-    jh_leader TEXT,
-    s_type TEXT,
-    rating INTEGER,
-    observation TEXT,
-    image_paths TEXT
-)
-""")
-conn.commit()
+# ---------------- CREATE EXCEL IF NOT EXISTS ----------------
+if not os.path.exists(EXCEL_FILE):
+    df = pd.DataFrame(columns=[
+        "Audit ID",
+        "Audit Date",
+        "Plant",
+        "Division",
+        "Divisional Head",
+        "Department Head",
+        "Audit Area",
+        "Audit Line/Area/Office",
+        "Auditee",
+        "Auditor",
+        "JH Leader",
+        "S Type",
+        "Observation",
+        "Image Paths",
+        "Timestamp"
+    ])
+    df.to_excel(EXCEL_FILE, index=False)
 
-st.title("5S Audit App")
+# ---------------- AUDIT HEADER ----------------
+st.header("Audit Details")
 
 audit_date = st.date_input("Audit Date")
 
@@ -53,59 +56,87 @@ auditee = st.text_input("Auditee")
 auditor = st.text_input("Auditor")
 jh_leader = st.text_input("JH Leader")
 
+# ---------------- S TYPE ----------------
 s_type = st.selectbox(
     "Select S",
     ["1S", "2S", "3S", "4S", "5S"]
 )
 
-rating = st.slider("Rating", 1, 5)
+# ---------------- OBSERVATIONS ----------------
+st.header("Observations")
 
-observation = st.text_area("Observation")
+if "observations_count" not in st.session_state:
+    st.session_state.observations_count = 1
 
-uploaded_files = st.file_uploader(
-    "Upload/Capture Images",
-    type=["png", "jpg", "jpeg"],
-    accept_multiple_files=True
-)
+if st.button("➕ Add Observation"):
+    st.session_state.observations_count += 1
 
-if st.button("Save Audit"):
-    saved_paths = []
+observation_data = []
 
-    for file in uploaded_files:
-        filename = f"{datetime.now().timestamp()}_{file.name}"
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
+for i in range(st.session_state.observations_count):
+    st.subheader(f"Observation {i+1}")
 
-        with open(filepath, "wb") as f:
-            f.write(file.getbuffer())
-
-        saved_paths.append(filepath)
-
-    image_paths = ",".join(saved_paths)
-
-    cursor.execute("""
-    INSERT INTO audits (
-        audit_date, plant, division, divisional_head,
-        department_head, audit_area, audit_line,
-        auditee, auditor, jh_leader,
-        s_type, rating, observation, image_paths
+    obs_text = st.text_area(
+        f"Observation Text {i+1}",
+        key=f"obs_text_{i}"
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        str(audit_date),
-        plant,
-        division,
-        divisional_head,
-        department_head,
-        audit_area,
-        audit_line,
-        auditee,
-        auditor,
-        jh_leader,
-        s_type,
-        rating,
-        observation,
-        image_paths
-    ))
 
-    conn.commit()
-    st.success("Audit Saved Successfully!")
+    uploaded_files = st.file_uploader(
+        f"Upload/Capture Images {i+1}",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        key=f"img_{i}"
+    )
+
+    observation_data.append({
+        "text": obs_text,
+        "files": uploaded_files
+    })
+
+# ---------------- SAVE BUTTON ----------------
+if st.button("Save Audit"):
+    audit_id = "AUD-" + datetime.now().strftime("%Y%m%d%H%M%S")
+
+    existing_df = pd.read_excel(EXCEL_FILE)
+    new_rows = []
+
+    for obs in observation_data:
+        saved_paths = []
+
+        if obs["files"]:
+            for file in obs["files"]:
+                filename = f"{audit_id}_{file.name}"
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+
+                with open(filepath, "wb") as f:
+                    f.write(file.getbuffer())
+
+                saved_paths.append(filepath)
+
+        image_paths = ",".join(saved_paths)
+
+        row = {
+            "Audit ID": audit_id,
+            "Audit Date": str(audit_date),
+            "Plant": plant,
+            "Division": division,
+            "Divisional Head": divisional_head,
+            "Department Head": department_head,
+            "Audit Area": audit_area,
+            "Audit Line/Area/Office": audit_line,
+            "Auditee": auditee,
+            "Auditor": auditor,
+            "JH Leader": jh_leader,
+            "S Type": s_type,
+            "Observation": obs["text"],
+            "Image Paths": image_paths,
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+        new_rows.append(row)
+
+    new_df = pd.DataFrame(new_rows)
+    final_df = pd.concat([existing_df, new_df], ignore_index=True)
+    final_df.to_excel(EXCEL_FILE, index=False)
+
+    st.success(f"Audit Saved Successfully! Audit ID: {audit_id}")
