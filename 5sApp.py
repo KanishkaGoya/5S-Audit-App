@@ -50,7 +50,7 @@ plant = st.selectbox("Plant", ["Jaipur", "Newai", "Savli", "Bagru"])
 
 division = st.selectbox(
     "Division",
-    ["BB", "TRB", "RB", "LDB", "Quality", "Maintainance"]
+    ["BB", "TRB", "RB", "LDB", "NRB", "Quality", "Maintenance"]
 )
 
 divisional_head = st.text_input("Divisional Head")
