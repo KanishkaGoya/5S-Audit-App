@@ -13,15 +13,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 st.set_page_config(page_title="5S Audit App", layout="wide")
 st.title("5S Audit Management App")
 
+# ---------------- SUCCESS MESSAGE ----------------
 if "save_success" in st.session_state:
     st.success(st.session_state.save_success)
 
 # ---------------- SESSION STATE ----------------
 if "obs_count" not in st.session_state:
     st.session_state.obs_count = 1
-
-if "last_saved_signature" not in st.session_state:
-    st.session_state.last_saved_signature = None
 
 # ---------------- CREATE EXCEL ----------------
 if not os.path.exists(EXCEL_FILE):
@@ -110,7 +108,7 @@ for i in range(st.session_state.obs_count):
         if camera_file:
             files.append(camera_file)
 
-    # Preview images
+    # Preview uploaded/captured images
     if files:
         for file in files:
             st.image(file, caption=file.name, width=250)
@@ -123,29 +121,28 @@ for i in range(st.session_state.obs_count):
 # ---------------- SAVE AUDIT ----------------
 if st.button("Save Audit"):
 
-    current_signature = str({
-        "audit_date": str(audit_date),
-        "plant": plant,
-        "division": division,
-        "audit_area": audit_area,
-        "audit_line": audit_line,
-        "auditee": auditee,
-        "auditor": auditor,
-        "s_type": s_type,
-        "observations": [obs["text"] for obs in observation_data]
-    })
+    existing_df = pd.read_excel(EXCEL_FILE)
 
-    if st.session_state.last_saved_signature == current_signature:
-        st.warning("This audit is already saved.")
-        st.stop()
+    # Duplicate check
+    if not existing_df.empty:
+        duplicate_check = existing_df[
+            (existing_df["Audit Date"] == str(audit_date)) &
+            (existing_df["Plant"] == plant) &
+            (existing_df["Division"] == division) &
+            (existing_df["Audit Area"] == audit_area) &
+            (existing_df["Audit Line/Area/Office"] == audit_line)
+        ]
 
+        if not duplicate_check.empty:
+            st.warning("This audit data is already saved.")
+            st.stop()
+
+    # Generate Audit ID
     safe_division = division.replace(" ", "_")
     safe_area = audit_area.replace(" ", "_")
     safe_line = audit_line.replace(" ", "_")
 
     today_str = datetime.now().strftime("%Y%m%d")
-
-    existing_df = pd.read_excel(EXCEL_FILE)
 
     today_count = existing_df[
         existing_df["Audit ID"].astype(str).str.contains(today_str, na=False)
@@ -161,14 +158,15 @@ if st.button("Save Audit"):
     )
 
     rows = []
+    global_image_counter = 1
 
     for obs in observation_data:
         saved_files = []
 
         if obs["files"]:
             for file in obs["files"]:
-                image_number = len(saved_files) + 1
-                filename = f"{audit_id}_{image_number}.jpg"
+                filename = f"{audit_id}_{global_image_counter}.jpg"
+                global_image_counter += 1
 
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
 
@@ -201,15 +199,17 @@ if st.button("Save Audit"):
     final_df = pd.concat([existing_df, new_df], ignore_index=True)
     final_df.to_excel(EXCEL_FILE, index=False)
 
-    st.session_state.last_saved_signature = current_signature
+    # Success message
     st.session_state.save_success = f"Audit Saved Successfully! Audit ID: {audit_id}"
 
-    # Clear form fields
-    keys_to_keep = ["last_saved_signature", "save_success"]
+    # Reset fields
+    keys_to_keep = ["save_success"]
 
     for key in list(st.session_state.keys()):
-       if key not in keys_to_keep:
-           del st.session_state[key]
+        if key not in keys_to_keep:
+            del st.session_state[key]
+
+    st.rerun()
 
 # ---------------- DOWNLOAD EXCEL ----------------
 if os.path.exists(EXCEL_FILE):
