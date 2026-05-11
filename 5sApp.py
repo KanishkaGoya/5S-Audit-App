@@ -13,7 +13,14 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 st.set_page_config(page_title="5S Audit App", layout="wide")
 st.title("5S Audit Management App")
 
-# ---------------- CREATE EXCEL IF NOT EXISTS ----------------
+# ---------------- SESSION STATE ----------------
+if "obs_count" not in st.session_state:
+    st.session_state.obs_count = 1
+
+if "last_saved_signature" not in st.session_state:
+    st.session_state.last_saved_signature = None
+
+# ---------------- CREATE EXCEL ----------------
 if not os.path.exists(EXCEL_FILE):
     df = pd.DataFrame(columns=[
         "Audit ID",
@@ -38,7 +45,6 @@ if not os.path.exists(EXCEL_FILE):
 st.header("Audit Details")
 
 audit_date = st.date_input("Audit Date")
-
 plant = st.selectbox("Plant", ["Jaipur", "Newai", "Savli", "Bagru"])
 
 division = st.selectbox(
@@ -59,9 +65,6 @@ s_type = st.selectbox("Select S", ["1S", "2S", "3S", "4S", "5S"])
 # ---------------- OBSERVATIONS ----------------
 st.header("Observations")
 
-if "obs_count" not in st.session_state:
-    st.session_state.obs_count = 1
-
 if st.button("➕ Add Observation"):
     st.session_state.obs_count += 1
 
@@ -75,26 +78,36 @@ for i in range(st.session_state.obs_count):
         key=f"text_{i}"
     )
 
-    uploaded_files = st.file_uploader(
-        f"Upload Images {i+1}",
-        type=["jpg", "jpeg", "png"],
-        accept_multiple_files=True,
-        key=f"upload_{i}"
-    )
-
-    camera_file = st.camera_input(
-        f"Capture Image {i+1}",
-        key=f"camera_{i}"
+    image_option = st.radio(
+        f"Add Image for Observation {i+1}",
+        ["None", "Upload from Device", "Capture from Camera"],
+        horizontal=True,
+        key=f"image_option_{i}"
     )
 
     files = []
 
-    if uploaded_files:
-        files.extend(uploaded_files)
+    if image_option == "Upload from Device":
+        uploaded_files = st.file_uploader(
+            f"Upload Images {i+1}",
+            type=["jpg", "jpeg", "png"],
+            accept_multiple_files=True,
+            key=f"upload_{i}"
+        )
 
-    if camera_file:
-        files.append(camera_file)
+        if uploaded_files:
+            files.extend(uploaded_files)
 
+    elif image_option == "Capture from Camera":
+        camera_file = st.camera_input(
+            f"Capture Image {i+1}",
+            key=f"camera_{i}"
+        )
+
+        if camera_file:
+            files.append(camera_file)
+
+    # Preview images
     if files:
         for file in files:
             st.image(file, caption=file.name, width=250)
@@ -106,6 +119,22 @@ for i in range(st.session_state.obs_count):
 
 # ---------------- SAVE AUDIT ----------------
 if st.button("Save Audit"):
+
+    current_signature = str({
+        "audit_date": str(audit_date),
+        "plant": plant,
+        "division": division,
+        "audit_area": audit_area,
+        "audit_line": audit_line,
+        "auditee": auditee,
+        "auditor": auditor,
+        "s_type": s_type,
+        "observations": [obs["text"] for obs in observation_data]
+    })
+
+    if st.session_state.last_saved_signature == current_signature:
+        st.warning("This audit is already saved.")
+        st.stop()
 
     safe_division = division.replace(" ", "_")
     safe_area = audit_area.replace(" ", "_")
@@ -135,10 +164,9 @@ if st.button("Save Audit"):
 
         if obs["files"]:
             for file in obs["files"]:
-                file_extension = file.name.split(".")[-1]
                 image_number = len(saved_files) + 1
+                filename = f"{audit_id}_{image_number}.jpg"
 
-                filename = f"{audit_id}_{image_number}.{file_extension}"
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
 
                 with open(filepath, "wb") as f:
@@ -172,7 +200,13 @@ if st.button("Save Audit"):
 
     st.success(f"Audit Saved Successfully! Audit ID: {audit_id}")
 
-    st.session_state.obs_count = 1
+    st.session_state.last_saved_signature = current_signature
+
+    # Reset all fields
+    keys_to_clear = list(st.session_state.keys())
+    for key in keys_to_clear:
+        del st.session_state[key]
+
     st.rerun()
 
 # ---------------- DOWNLOAD EXCEL ----------------
@@ -185,7 +219,7 @@ if os.path.exists(EXCEL_FILE):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# ---------------- DOWNLOAD IMAGES ZIP ----------------
+# ---------------- DOWNLOAD ZIP ----------------
 zip_filename = "all_audit_images.zip"
 
 with zipfile.ZipFile(zip_filename, "w") as zipf:
