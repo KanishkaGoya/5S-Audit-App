@@ -13,6 +13,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 st.set_page_config(page_title="5S Audit App", layout="wide")
 st.title("5S Audit Management App")
 
+if "save_success" in st.session_state:
+    st.success(st.session_state.save_success)
+
 # ---------------- SESSION STATE ----------------
 if "obs_count" not in st.session_state:
     st.session_state.obs_count = 1
@@ -198,16 +201,15 @@ if st.button("Save Audit"):
     final_df = pd.concat([existing_df, new_df], ignore_index=True)
     final_df.to_excel(EXCEL_FILE, index=False)
 
-    st.success(f"Audit Saved Successfully! Audit ID: {audit_id}")
-
     st.session_state.last_saved_signature = current_signature
+    st.session_state.save_success = f"Audit Saved Successfully! Audit ID: {audit_id}"
 
-    # Reset all fields
-    keys_to_clear = list(st.session_state.keys())
-    for key in keys_to_clear:
-        del st.session_state[key]
+    # Clear form fields
+    keys_to_keep = ["last_saved_signature", "save_success"]
 
-    st.rerun()
+    for key in list(st.session_state.keys()):
+       if key not in keys_to_keep:
+           del st.session_state[key]
 
 # ---------------- DOWNLOAD EXCEL ----------------
 if os.path.exists(EXCEL_FILE):
