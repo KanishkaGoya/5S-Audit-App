@@ -39,14 +39,11 @@ st.header("Audit Details")
 
 audit_date = st.date_input("Audit Date")
 
-plant = st.selectbox(
-    "Plant",
-    ["Jaipur", "Newai", "Savli", "Bagru"]
-)
+plant = st.selectbox("Plant", ["Jaipur", "Newai", "Savli", "Bagru"])
 
 division = st.selectbox(
     "Division",
-    ["BB", "TRB", "RB", "LDB", "NRB", "Quality", "Maintainance"]
+    ["BB", "TRB", "RB", "LDB", "Quality", "Maintainance"]
 )
 
 divisional_head = st.text_input("Divisional Head")
@@ -57,10 +54,7 @@ auditee = st.text_input("Auditee")
 auditor = st.text_input("Auditor")
 jh_leader = st.text_input("JH Leader")
 
-s_type = st.selectbox(
-    "Select S",
-    ["1S", "2S", "3S", "4S", "5S"]
-)
+s_type = st.selectbox("Select S", ["1S", "2S", "3S", "4S", "5S"])
 
 # ---------------- OBSERVATIONS ----------------
 st.header("Observations")
@@ -82,29 +76,25 @@ for i in range(st.session_state.obs_count):
     )
 
     uploaded_files = st.file_uploader(
-    f"Upload Images {i+1}",
-    type=["jpg", "jpeg", "png"],
-    accept_multiple_files=True,
-    key=f"upload_{i}"
-)
+        f"Upload Images {i+1}",
+        type=["jpg", "jpeg", "png"],
+        accept_multiple_files=True,
+        key=f"upload_{i}"
+    )
 
-camera_file = st.camera_input(
-    f"Capture Image {i+1}",
-    key=f"camera_{i}"
-)
+    camera_file = st.camera_input(
+        f"Capture Image {i+1}",
+        key=f"camera_{i}"
+    )
 
-files = []
+    files = []
 
-# Add uploaded files
-if uploaded_files:
-    files.extend(uploaded_files)
+    if uploaded_files:
+        files.extend(uploaded_files)
 
-# Add camera file
-if camera_file:
-    files.append(camera_file)
-    
+    if camera_file:
+        files.append(camera_file)
 
-    # Preview images
     if files:
         for file in files:
             st.image(file, caption=file.name, width=250)
@@ -116,36 +106,45 @@ if camera_file:
 
 # ---------------- SAVE AUDIT ----------------
 if st.button("Save Audit"):
-    audit_id = "AUD-" + datetime.now().strftime("%Y%m%d%H%M%S")
+
+    safe_division = division.replace(" ", "_")
+    safe_area = audit_area.replace(" ", "_")
+    safe_line = audit_line.replace(" ", "_")
+
+    today_str = datetime.now().strftime("%Y%m%d")
 
     existing_df = pd.read_excel(EXCEL_FILE)
+
+    today_count = existing_df[
+        existing_df["Audit ID"].astype(str).str.contains(today_str, na=False)
+    ].shape[0] + 1
+
+    seq_no = str(today_count).zfill(3)
+
+    audit_id = (
+        f"{safe_division}_"
+        f"{safe_area}_"
+        f"{safe_line}_"
+        f"AUD{today_str}{seq_no}"
+    )
+
     rows = []
-    saved_files_all = []
 
     for obs in observation_data:
         saved_files = []
 
         if obs["files"]:
             for file in obs["files"]:
-                safe_division = division.replace(" ", "_")
-                safe_area = audit_area.replace(" ", "_")
-                safe_line = audit_line.replace(" ", "_")
+                file_extension = file.name.split(".")[-1]
+                image_number = len(saved_files) + 1
 
-                filename = (
-                    f"{safe_division}_"
-                    f"{safe_area}_"
-                    f"{safe_line}_"
-                    f"{audit_id}_"
-                    f"{file.name}"
-                )
-
+                filename = f"{audit_id}_{image_number}.{file_extension}"
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
 
                 with open(filepath, "wb") as f:
                     f.write(file.getbuffer())
 
                 saved_files.append(filename)
-                saved_files_all.append(filename)
 
         row = {
             "Audit ID": audit_id,
@@ -173,6 +172,9 @@ if st.button("Save Audit"):
 
     st.success(f"Audit Saved Successfully! Audit ID: {audit_id}")
 
+    st.session_state.obs_count = 1
+    st.rerun()
+
 # ---------------- DOWNLOAD EXCEL ----------------
 if os.path.exists(EXCEL_FILE):
     with open(EXCEL_FILE, "rb") as file:
@@ -183,7 +185,7 @@ if os.path.exists(EXCEL_FILE):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# ---------------- DOWNLOAD ALL IMAGES ZIP ----------------
+# ---------------- DOWNLOAD IMAGES ZIP ----------------
 zip_filename = "all_audit_images.zip"
 
 with zipfile.ZipFile(zip_filename, "w") as zipf:
